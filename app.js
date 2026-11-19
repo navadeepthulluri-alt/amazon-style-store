@@ -1,77 +1,621 @@
-const $=id=>document.getElementById(id);
-const API_BASE="/api";
-async function api(path,options={}){const token=localStorage.getItem("storeToken");const headers={"Content-Type":"application/json",...(options.headers||{})};if(token)headers.Authorization=`Bearer ${token}`;const response=await fetch(`${API_BASE}${path}`,{...options,headers});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||"Request failed");return data;}
-let state={category:"All",query:"",page:1,perPage:20,sort:"featured",cart:[],authMode:"signin",checkoutStep:1,checkout:{name:"",email:"",phone:"",address:"",city:"",pin:"",payment:"UPI"},buyNowId:null};
-const money=n=>"₹"+Number(n).toLocaleString("en-IN");
-function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2100)}
-function imageMarkup(p,cls="product-image"){return `<img class="${cls}" src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.src='https://placehold.co/500x400/f5f5f5/333?text=${encodeURIComponent(p.category)}'">`}
-async function init(){
- try{const dbProducts=await api("/products");if(Array.isArray(dbProducts)&&dbProducts.length){products.splice(0,products.length,...dbProducts);}}catch(error){console.warn("Using local catalogue until API is available:",error.message)}
- categories.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=c.name;$("searchCategory").append(o)});
- $("categoryStrip").innerHTML=categories.map(c=>`<button class="category-tile" data-category="${c.name}">${c.emoji} ${c.name}<span>Explore products</span></button>`).join("");
- render();
-}
-function filtered(){let arr=products.filter(p=>(state.category==="All"||p.category===state.category)&&(`${p.name} ${p.category}`.toLowerCase().includes(state.query.toLowerCase())));if(state.category==="All"&&!state.query){const mixed=[];for(let i=0;i<25;i++){categories.forEach(c=>{const item=arr.find(p=>p.category===c.name&&(Number(p.id)-1)%25===i);if(item)mixed.push(item)})}arr=mixed;}if(state.sort==="low")arr.sort((a,b)=>a.price-b.price);if(state.sort==="high")arr.sort((a,b)=>b.price-a.price);if(state.sort==="rating")arr.sort((a,b)=>b.rating-a.rating);return arr}
-function render(){const arr=filtered(),pages=Math.max(1,Math.ceil(arr.length/state.perPage));state.page=Math.min(state.page,pages);const shown=arr.slice((state.page-1)*state.perPage,state.page*state.perPage);const cards=shown.map(p=>`<article class="product-card" data-open="${p.id}">${imageMarkup(p)}<div class="product-name">${p.name}</div><div class="rating">★★★★☆ <span style="color:#007185">${p.rating} (${p.reviews.toLocaleString("en-IN")})</span></div><div class="price"><small>₹</small>${p.price.toLocaleString("en-IN")}</div><div class="old-price">M.R.P.: ${money(p.oldPrice)}</div><div class="stock">In stock (${p.stock} available)</div><div class="card-actions"><button data-add="${p.id}">Add to Cart</button><button data-buy="${p.id}">Buy Now</button></div></article>`);$("productGrid").innerHTML=cards.join("")||"<p>No products found. Try another search.</p>";$("sectionTitle").textContent=state.category==="All"?"Today's deals":state.category;$("resultInfo").textContent=`${arr.length} products found`;$("pageInfo").textContent=`Page ${state.page} of ${pages}`;$("prevPage").disabled=state.page===1;$("nextPage").disabled=state.page===pages;updateCartCount()}
-function updateCartCount(){$("cartCount").textContent=state.cart.reduce((s,x)=>s+x.qty,0)}
-function addCart(id){let p=products.find(x=>x.id===id),item=state.cart.find(x=>x.id===id);if(item)item.qty++;else state.cart.push({id,qty:1});updateCartCount();toast(`${p.name} added to cart`)}
-function openOverlay(id){$("overlay").classList.remove("hidden");$(id).classList.remove("hidden")}
-function closeAll(){$("overlay").classList.add("hidden");document.querySelectorAll(".drawer,.modal").forEach(x=>x.classList.add("hidden"))}
-function openCart(){$("cartItems").innerHTML=state.cart.length?state.cart.map(x=>{let p=products.find(y=>y.id===x.id);return `<div class="cart-row">${imageMarkup(p,"")}<div><b>${p.name}</b><p>${money(p.price)} × ${x.qty}</p><button data-remove="${p.id}">Remove</button></div><b>${money(p.price*x.qty)}</b></div>`}).join(""):"<p>Your cart is empty.</p>";$("cartTotal").textContent=money(state.cart.reduce((s,x)=>s+products.find(p=>p.id===x.id).price*x.qty,0));openOverlay("cartDrawer")}
-function openAuth(){state.authMode="signin";$("authTitle").textContent="Sign in";$("authName").classList.remove("required");$("authName").parentElement.classList.remove("hidden");$("authName").required=false;$("authSubmit").textContent="Sign in";$("authSwitch").innerHTML='New here? <button class="text-button" id="switchAuth">Create an account</button>';openOverlay("authModal")}
-function switchAuth(){state.authMode=state.authMode==="signin"?"signup":"signin";$("authTitle").textContent=state.authMode==="signin"?"Sign in":"Create account";$("authName").parentElement.classList.toggle("hidden",state.authMode==="signin");$("authName").required=state.authMode==="signup";$("authSubmit").textContent=state.authMode==="signin"?"Sign in":"Create account";$("authSwitch").innerHTML=state.authMode==="signin"?'New here? <button class="text-button" id="switchAuth">Create an account</button>':'Already registered? <button class="text-button" id="switchAuth">Sign in</button>'}
-function currentUser(){return JSON.parse(localStorage.getItem("storeUser")||"null")}
-function showInfo(title,body){$("infoTitle").textContent=title;$("infoBody").innerHTML=body;openOverlay("infoModal")}
-async function showOrders(){try{const orders=await api("/orders");const body=orders.length?orders.map(o=>`<div class="order-entry"><b>Order ${o.orderNumber}</b><p>${new Date(o.createdAt).toLocaleString()}</p><p>${o.items.map(i=>i.name+" × "+i.qty).join(", ")}</p><b>${money(o.total)}</b><p>Status: ${o.status}</p><button data-return="${o._id}">Request return</button></div>`).join(""):"<p>You have no orders yet. Place an order first to see it here.</p>";showInfo("Your Orders & Returns",body)}catch(e){toast(e.message)}}
 
-function renderCheckout(){document.querySelectorAll("[data-step-label]").forEach(el=>el.classList.toggle("active",Number(el.dataset.stepLabel)===state.checkoutStep));let c=state.checkout,html="";
-if(state.checkoutStep===1){html=`<h3>Sign in to continue</h3><p>Use your demo account or continue with the details below.</p><label>Email<input id="coEmail" type="email" value="${c.email}" placeholder="name@example.com"></label><label>Password<input id="coPassword" type="password" placeholder="Demo password"></label><p class="tiny">If you have not created an account, use the account button in the header first.</p>`}
-if(state.checkoutStep===2){html=`<h3>Delivery address</h3><label>Full name<input id="coName" value="${c.name}" required></label><label>Mobile number<input id="coPhone" value="${c.phone}" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number" required></label><label>Address<textarea id="coAddress" rows="2" required>${c.address}</textarea></label><label>City<input id="coCity" value="${c.city}" required></label><label>PIN code<input id="coPin" value="${c.pin}" inputmode="numeric" maxlength="6" required></label>`}
-if(state.checkoutStep===3){html=`<h3>Choose a payment method</h3><label><input type="radio" name="payment" value="UPI" ${c.payment==="UPI"?"checked":""}> UPI</label><label><input type="radio" name="payment" value="Card" ${c.payment==="Card"?"checked":""}> Credit / Debit Card (demo)</label><label><input type="radio" name="payment" value="COD" ${c.payment==="COD"?"checked":""}> Cash on Delivery</label><p class="tiny">No real payment will be collected in this demo.</p>`}
-if(state.checkoutStep===4){const items=checkoutItems();html=`<h3>Review your order</h3><p><b>Deliver to:</b> ${c.name}, ${c.address}, ${c.city} - ${c.pin}<br>Phone: ${c.phone}</p><p><b>Payment:</b> ${c.payment}</p>${items.map(x=>{let p=products.find(y=>y.id===x.id);return `<p>${p.name} × ${x.qty} <b>${money(p.price*x.qty)}</b></p>`}).join("")}<hr><h3>Order total: ${money(items.reduce((s,x)=>s+products.find(p=>p.id===x.id).price*x.qty,0))}</h3>`}
-$("checkoutContent").innerHTML=html+`<div class="checkout-actions"><button id="coBack" ${state.checkoutStep===1?"disabled":""}>Back</button><button id="coNext">${state.checkoutStep===4?"Place demo order":"Continue"}</button></div>`;
-}
-function checkoutItems(){return state.buyNowId?[{id:state.buyNowId,qty:1}]:state.cart}
-function startCheckout(id=null){state.buyNowId=id;state.checkoutStep=1;const u=currentUser();if(u){state.checkout.name=u.name||"";state.checkout.email=u.email||"";state.checkoutStep=2}renderCheckout();openOverlay("checkoutModal")}
-function saveCheckoutFields(){const get=id=>$(id)?.value||"";if(state.checkoutStep===1){state.checkout.email=get("coEmail");const u=currentUser();if(!u||u.email!==state.checkout.email){toast("Please sign in with your demo account first");return false}}
-if(state.checkoutStep===2){Object.assign(state.checkout,{name:get("coName"),phone:get("coPhone"),address:get("coAddress"),city:get("coCity"),pin:get("coPin")});if(!/^\d{10}$/.test(state.checkout.phone)){toast("Enter a valid 10-digit mobile number");return false}if(!/^\d{6}$/.test(state.checkout.pin)){toast("Enter a valid 6-digit PIN code");return false}if(!state.checkout.name||!state.checkout.address||!state.checkout.city){toast("Complete all delivery fields");return false}}
-if(state.checkoutStep===3){state.checkout.payment=document.querySelector('input[name="payment"]:checked')?.value||"UPI"}return true}
-async function nextCheckout(){if(!saveCheckoutFields())return;if(state.checkoutStep<4){state.checkoutStep++;renderCheckout();return}try{const finalItems=checkoutItems().map(x=>({productId:x.id,qty:x.qty}));const order=await api("/orders",{method:"POST",body:JSON.stringify({items:finalItems,delivery:{name:state.checkout.name,phone:state.checkout.phone,address:state.checkout.address,city:state.checkout.city,pin:state.checkout.pin},paymentMethod:state.checkout.payment})});state.cart=[];state.buyNowId=null;updateCartCount();$("checkoutContent").innerHTML=`<h2>Order placed successfully!</h2><p>Your order number is <b>${order.orderNumber}</b>.</p><p>Your order has been saved to the database. Payment is still a demo and no money was collected.</p><button class="primary" id="finishOrder">Continue shopping</button>`;document.querySelectorAll("[data-step-label]").forEach(el=>el.classList.remove("active"));toast("Order saved to database")}catch(e){toast(e.message)}}
+const $ = id => document.getElementById(id);
 
-function openProduct(id){const p=products.find(x=>x.id===id);$("productDetails").innerHTML=`<div class="product-detail">${imageMarkup(p,"")}<div><p>${p.category}</p><h2>${p.name}</h2><div class="rating">★★★★☆ ${p.rating} (${p.reviews} reviews)</div><h2>${money(p.price)}</h2><p class="old-price">M.R.P. ${money(p.oldPrice)}</p><p class="stock">In stock (${p.stock} available)</p><p>${p.description}</p><button class="primary" data-add="${p.id}">Add to Cart</button> <button class="primary" data-buy="${p.id}">Buy Now</button></div></div>`;openOverlay("productModal")}
-document.addEventListener("click",e=>{
- const card=e.target.closest("[data-open]");
- if(card&&!e.target.closest("button")){openProduct(Number(card.dataset.open));return}
- const t=e.target.closest("button,a");if(!t)return;
- if(t.dataset.category){state.category=t.dataset.category;state.query="";$("searchInput").value="";$("searchCategory").value=state.category;state.page=1;render();document.querySelector(".toolbar").scrollIntoView({behavior:"smooth",block:"start"});}
- if(t.dataset.add)addCart(Number(t.dataset.add));
- if(t.dataset.buy){closeAll();startCheckout(Number(t.dataset.buy));}
- if(t.dataset.remove){state.cart=state.cart.filter(x=>x.id!==Number(t.dataset.remove));openCart();updateCartCount();}
- if(t.dataset.return){api(`/orders/${t.dataset.return}/return`,{method:"PATCH"}).then(()=>{toast("Return request saved");showOrders()}).catch(e=>toast(e.message));}
- if(t.id==="switchAuth")switchAuth();
- if(t.id==="accountButton")openAuth();
- if(t.id==="cartButton")openCart();
- if(t.id==="ordersButton")showOrders();
- if(t.id==="sellNav")showInfo("Sell on this demo store","<p>Welcome to the seller information page.</p><p>In a real marketplace, sellers register their business, add products, manage stock and fulfil customer orders.</p><p>This learning demo does not connect to a seller account or accept real listings.</p>");
- if(t.id==="supportNav")showInfo("Customer Service","<p>How can we help?</p><ul><li>Orders: open Returns & Orders to view demo purchases.</li><li>Returns: choose Request return beside a demo order.</li><li>Payments: checkout payments are simulated only.</li><li>Account: use Account & Lists to create or sign in to a demo account.</li></ul><p>Demo support: support@example.test</p>");
- if(t.id==="bestNav"){state.category="All";state.sort="rating";$("sortSelect").value="rating";state.query="";state.page=1;render();document.querySelector(".toolbar").scrollIntoView({behavior:"smooth"});}
- if(t.id==="dealsNav"){state.category="All";state.sort="low";$("sortSelect").value="low";state.query="";state.page=1;render();document.querySelector(".toolbar").scrollIntoView({behavior:"smooth"});}
- if(t.id==="checkoutButton"){if(!state.cart.length){toast("Your cart is empty");return}closeAll();startCheckout();}
- if(t.id==="coNext")nextCheckout();
- if(t.id==="coBack"){if(saveCheckoutFields()){state.checkoutStep=Math.max(1,state.checkoutStep-1);renderCheckout();}}
- if(t.id==="finishOrder")closeAll();
- if(t.hasAttribute("data-close"))closeAll();
- if(t.id==="prevPage"){state.page--;render();}
- if(t.id==="nextPage"){state.page++;render();}
- if(t.id==="allCategories"){state.category="All";state.query="";$("searchInput").value="";$("searchCategory").value="All";state.page=1;state.sort="featured";$("sortSelect").value="featured";render();document.querySelector(".category-strip").scrollIntoView({behavior:"smooth"});}
- if(t.id==="shopNow"){window.scrollTo({top:450,behavior:"smooth"});}
- if(t.id==="heroNext"||t.id==="heroPrev")toast("Explore the products below.");
- if(t.id==="backTop")window.scrollTo({top:0,behavior:"smooth"});
- if(t.classList.contains("brand")){state.category="All";state.query="";state.page=1;render();}
+let state = {
+  category: "All",
+  query: "",
+  page: 1,
+  perPage: 20,
+  sort: "featured",
+  cart: JSON.parse(localStorage.getItem("storeCart") || "[]"),
+  authMode: "signin",
+  checkoutStep: 1,
+  checkout: {
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    pin: "",
+    payment: "UPI"
+  },
+  buyNowId: null
+};
+
+const money = n => "₹" + Number(n).toLocaleString("en-IN");
+
+function toast(message) {
+  const el = $("toast");
+  if (!el) {
+    alert(message);
+    return;
+  }
+  el.textContent = message;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2100);
+}
+
+function currentUser() {
+  return JSON.parse(localStorage.getItem("storeUser") || "null");
+}
+
+function authToken() {
+  return localStorage.getItem("storeToken") || "";
+}
+
+function saveCart() {
+  localStorage.setItem("storeCart", JSON.stringify(state.cart));
+}
+
+function updateCartCount() {
+  const count = $("cartCount");
+  if (count) {
+    count.textContent = state.cart.reduce((s, x) => s + x.qty, 0);
+  }
+}
+
+function imageMarkup(p, cls = "product-image") {
+  return `<img class="${cls}" src="${p.image}" alt="${p.name}" loading="lazy"
+  onerror="this.src='https://placehold.co/500x400?text=Product'">`;
+}
+
+function init() {
+  if (typeof categories !== "undefined") {
+    categories.forEach(c => {
+      const option = document.createElement("option");
+      option.value = c.name;
+      option.textContent = c.name;
+      $("searchCategory").append(option);
+    });
+
+    $("categoryStrip").innerHTML = categories.map(c =>
+      `<button class="category-tile" data-category="${c.name}">
+      ${c.emoji} ${c.name}<span>Explore products</span></button>`
+    ).join("");
+  }
+
+  render();
+
+  const user = currentUser();
+  if (user && $("accountButton")) {
+    $("accountButton").innerHTML =
+      `Hello, ${user.name}<br><b>Account & Lists</b>`;
+  }
+}
+
+function filtered() {
+  let arr = products.filter(p =>
+    (state.category === "All" || p.category === state.category) &&
+    (`${p.name} ${p.category}`).toLowerCase()
+      .includes(state.query.toLowerCase())
+  );
+
+  if (state.sort === "low") arr.sort((a, b) => a.price - b.price);
+  if (state.sort === "high") arr.sort((a, b) => b.price - a.price);
+  if (state.sort === "rating") arr.sort((a, b) => b.rating - a.rating);
+
+  return arr;
+}
+
+function render() {
+  const arr = filtered();
+  const pages = Math.max(1, Math.ceil(arr.length / state.perPage));
+
+  state.page = Math.min(state.page, pages);
+
+  const shown = arr.slice(
+    (state.page - 1) * state.perPage,
+    state.page * state.perPage
+  );
+
+  $("productGrid").innerHTML = shown.map(p => `
+    <article class="product-card" data-open="${p.id}">
+      ${imageMarkup(p)}
+      <div class="product-name">${p.name}</div>
+      <div class="rating">★★★★☆ ${p.rating}</div>
+      <div class="price">${money(p.price)}</div>
+      <div class="old-price">M.R.P.: ${money(p.oldPrice)}</div>
+      <div class="stock">In stock (${p.stock})</div>
+      <div class="card-actions">
+        <button data-add="${p.id}">Add to Cart</button>
+        <button data-buy="${p.id}">Buy Now</button>
+      </div>
+    </article>
+  `).join("") || "<p>No products found.</p>";
+
+  $("sectionTitle").textContent =
+    state.category === "All" ? "Today's Deals" : state.category;
+
+  $("resultInfo").textContent = `${arr.length} products found`;
+  $("pageInfo").textContent = `Page ${state.page} of ${pages}`;
+
+  $("prevPage").disabled = state.page === 1;
+  $("nextPage").disabled = state.page === pages;
+
+  updateCartCount();
+}
+
+function addCart(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+
+  const item = state.cart.find(x => x.id === id);
+
+  if (item) item.qty++;
+  else state.cart.push({ id, qty: 1 });
+
+  saveCart();
+  updateCartCount();
+  toast("Product added to cart");
+}
+
+function openOverlay(id) {
+  $("overlay").classList.remove("hidden");
+  $(id).classList.remove("hidden");
+}
+
+function closeAll() {
+  $("overlay").classList.add("hidden");
+  document.querySelectorAll(".drawer,.modal")
+    .forEach(el => el.classList.add("hidden"));
+}
+
+function showInfo(title, body) {
+  let modal = $("infoModal");
+
+  if (!modal) {
+    modal = document.createElement("section");
+    modal.id = "infoModal";
+    modal.className = "modal hidden";
+    modal.innerHTML = `
+      <button class="close modal-close" data-close>×</button>
+      <h2 id="infoTitle"></h2>
+      <div id="infoBody"></div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  $("infoTitle").textContent = title;
+  $("infoBody").innerHTML = body;
+  openOverlay("infoModal");
+}
+
+function openAuth() {
+  state.authMode = "signin";
+
+  $("authTitle").textContent = "Sign in";
+  $("authName").parentElement.classList.add("hidden");
+  $("authName").required = false;
+  $("authSubmit").textContent = "Sign in";
+
+  $("authSwitch").innerHTML =
+    'New here? <button type="button" class="text-button" id="switchAuth">Create an account</button>';
+
+  openOverlay("authModal");
+}
+
+function switchAuth() {
+  state.authMode =
+    state.authMode === "signin" ? "signup" : "signin";
+
+  const signup = state.authMode === "signup";
+
+  $("authTitle").textContent = signup
+    ? "Create account" : "Sign in";
+
+  $("authName").parentElement.classList.toggle("hidden", !signup);
+  $("authName").required = signup;
+
+  $("authSubmit").textContent = signup
+    ? "Create account" : "Sign in";
+
+  $("authSwitch").innerHTML = signup
+    ? 'Already registered? <button type="button" class="text-button" id="switchAuth">Sign in</button>'
+    : 'New here? <button type="button" class="text-button" id="switchAuth">Create an account</button>';
+}
+
+async function openOrders() {
+  if (!authToken()) {
+    openAuth();
+    toast("Please sign in first");
+    return;
+  }
+
+  showInfo("Returns & Orders", "<p>Loading your orders...</p>");
+
+  try {
+    const response = await fetch("/api/orders", {
+      headers: { Authorization: `Bearer ${authToken()}` }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message);
+
+    if (!data.length) {
+      $("infoBody").innerHTML = "<p>No orders found.</p>";
+      return;
+    }
+
+    $("infoBody").innerHTML = data.map(order => `
+      <article class="order-card">
+        <b>Order ${order.orderNumber || order._id}</b>
+        <p>Status: ${order.status}</p>
+        <p>Total: ${money(order.total)}</p>
+        ${(order.items || []).map(item =>
+          `<p>${item.name} × ${item.qty}</p>`
+        ).join("")}
+        ${order.status !== "Return requested"
+          ? `<button class="primary" data-return="${order._id}">Request return</button>`
+          : "<p>Return requested</p>"}
+      </article>
+    `).join("");
+
+  } catch (error) {
+    $("infoBody").textContent = error.message;
+  }
+}
+
+async function requestReturn(id) {
+  try {
+    const response = await fetch(`/api/orders/${encodeURIComponent(id)}/return`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${authToken()}` }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message);
+
+    toast("Return requested successfully");
+    openOrders();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function openCart() {
+  $("cartItems").innerHTML = state.cart.length
+    ? state.cart.map(item => {
+        const p = products.find(x => x.id === item.id);
+        if (!p) return "";
+
+        return `
+          <div class="cart-row">
+            ${imageMarkup(p, "")}
+            <div>
+              <b>${p.name}</b>
+              <p>${money(p.price)} × ${item.qty}</p>
+              <button data-remove="${p.id}">Remove</button>
+            </div>
+          </div>
+        `;
+      }).join("")
+    : "<p>Your cart is empty.</p>";
+
+  const total = state.cart.reduce((sum, item) => {
+    const p = products.find(x => x.id === item.id);
+    return sum + (p ? p.price * item.qty : 0);
+  }, 0);
+
+  $("cartTotal").textContent = money(total);
+  openOverlay("cartDrawer");
+}
+
+function openProduct(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+
+  $("productDetails").innerHTML = `
+    <div class="product-detail">
+      ${imageMarkup(p, "")}
+      <div>
+        <h2>${p.name}</h2>
+        <p>${p.category}</p>
+        <h2>${money(p.price)}</h2>
+        <p>${p.description || ""}</p>
+        <button class="primary" data-add="${p.id}">Add to Cart</button>
+        <button class="primary" data-buy="${p.id}">Buy Now</button>
+      </div>
+    </div>
+  `;
+
+  openOverlay("productModal");
+}
+
+function startCheckout(id = null) {
+  if (!authToken()) {
+    openAuth();
+    toast("Please sign in before checkout");
+    return;
+  }
+
+  state.buyNowId = id;
+  state.checkoutStep = 1;
+
+  const user = currentUser();
+
+  if (user) {
+    state.checkout.name = user.name || "";
+    state.checkout.email = user.email || "";
+    state.checkoutStep = 2;
+  }
+
+  renderCheckout();
+  openOverlay("checkoutModal");
+}
+
+function checkoutItems() {
+  return state.buyNowId
+    ? [{ id: state.buyNowId, qty: 1 }]
+    : state.cart;
+}
+
+function renderCheckout() {
+  const c = state.checkout;
+  let html = "";
+
+  if (state.checkoutStep === 2) {
+    html = `
+      <h3>Delivery address</h3>
+      <label>Name<input id="coName" value="${c.name}"></label>
+      <label>Phone<input id="coPhone" value="${c.phone}"></label>
+      <label>Address<textarea id="coAddress">${c.address}</textarea></label>
+      <label>City<input id="coCity" value="${c.city}"></label>
+      <label>PIN<input id="coPin" value="${c.pin}"></label>
+    `;
+  }
+
+  if (state.checkoutStep === 3) {
+    html = `
+      <h3>Payment method</h3>
+      <label><input type="radio" name="payment" value="UPI" checked> UPI</label>
+      <label><input type="radio" name="payment" value="Card"> Card (demo)</label>
+      <label><input type="radio" name="payment" value="COD"> Cash on Delivery</label>
+    `;
+  }
+
+  if (state.checkoutStep === 4) {
+    html = "<h3>Review your order</h3>";
+
+    checkoutItems().forEach(item => {
+      const p = products.find(x => x.id === item.id);
+      if (p) html += `<p>${p.name} × ${item.qty} : ${money(p.price * item.qty)}</p>`;
+    });
+  }
+
+  $("checkoutContent").innerHTML = html + `
+    <div class="checkout-actions">
+      <button id="coBack">Back</button>
+      <button id="coNext">${state.checkoutStep === 4 ? "Place Order" : "Continue"}</button>
+    </div>
+  `;
+}
+
+async function nextCheckout() {
+  if (state.checkoutStep === 2) {
+    Object.assign(state.checkout, {
+      name: $("coName").value,
+      phone: $("coPhone").value,
+      address: $("coAddress").value,
+      city: $("coCity").value,
+      pin: $("coPin").value
+    });
+
+    if (!/^\d{10}$/.test(state.checkout.phone)) {
+      toast("Enter a valid 10-digit phone number");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(state.checkout.pin)) {
+      toast("Enter a valid 6-digit PIN");
+      return;
+    }
+  }
+
+  if (state.checkoutStep === 3) {
+    state.checkout.payment =
+      document.querySelector('input[name="payment"]:checked')?.value || "UPI";
+  }
+
+  if (state.checkoutStep < 4) {
+    state.checkoutStep++;
+    renderCheckout();
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken()}`
+      },
+      body: JSON.stringify({
+        items: checkoutItems().map(x => ({
+          productId: x.id,
+          qty: x.qty
+        })),
+        delivery: {
+          name: state.checkout.name,
+          phone: state.checkout.phone,
+          address: state.checkout.address,
+          city: state.checkout.city,
+          pin: state.checkout.pin
+        },
+        paymentMethod: state.checkout.payment
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message);
+
+    state.cart = [];
+    saveCart();
+    updateCartCount();
+
+    $("checkoutContent").innerHTML = `
+      <h2>Order placed successfully!</h2>
+      <p>Order number: ${data.orderNumber}</p>
+      <p>Demo order only. No real payment was taken.</p>
+      <button id="finishOrder">Continue shopping</button>
+    `;
+
+    state.buyNowId = null;
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+// All button click actions
+document.addEventListener("click", async event => {
+  const button = event.target.closest("button");
+  if (!button) return;
+
+  if (button.id === "sellNav") {
+    showInfo("Sell on our store",
+      "<p>Seller information and registration for this demo store.</p>");
+  }
+
+  if (button.id === "bestNav") {
+    state.sort = "rating";
+    state.category = "All";
+    state.page = 1;
+    $("sortSelect").value = "rating";
+    render();
+  }
+
+  if (button.id === "dealsNav") {
+    state.sort = "low";
+    state.category = "All";
+    state.page = 1;
+    $("sortSelect").value = "low";
+    render();
+  }
+
+  if (button.id === "accountButton") openAuth();
+  if (button.id === "ordersButton") openOrders();
+  if (button.id === "cartButton") openCart();
+
+  if (button.id === "switchAuth") switchAuth();
+
+  if (button.dataset.category) {
+    state.category = button.dataset.category;
+    state.page = 1;
+    render();
+  }
+
+  if (button.dataset.add) addCart(Number(button.dataset.add));
+
+  if (button.dataset.buy) {
+    closeAll();
+    startCheckout(Number(button.dataset.buy));
+  }
+
+  if (button.dataset.remove) {
+    state.cart = state.cart.filter(
+      x => x.id !== Number(button.dataset.remove)
+    );
+    saveCart();
+    openCart();
+    updateCartCount();
+  }
+
+  if (button.dataset.return) requestReturn(button.dataset.return);
+
+  if (button.id === "checkoutButton") {
+    if (!state.cart.length) {
+      toast("Your cart is empty");
+      return;
+    }
+    closeAll();
+    startCheckout();
+  }
+
+  if (button.id === "coNext") nextCheckout();
+
+  if (button.id === "coBack") {
+    state.checkoutStep = Math.max(2, state.checkoutStep - 1);
+    renderCheckout();
+  }
+
+  if (button.id === "finishOrder") closeAll();
+  if (button.hasAttribute("data-close")) closeAll();
+
+  if (button.id === "prevPage") {
+    state.page--;
+    render();
+  }
+
+  if (button.id === "nextPage") {
+    state.page++;
+    render();
+  }
+
+  if (button.id === "allCategories") {
+    state.category = "All";
+    state.page = 1;
+    render();
+  }
 });
-$("authForm").addEventListener("submit",async e=>{e.preventDefault();const email=$("authEmail").value.trim().toLowerCase(),password=$("authPassword").value;try{const payload=state.authMode==="signup"?{name:$("authName").value.trim(),email,password}:{email,password};const result=await api(state.authMode==="signup"?"/auth/register":"/auth/login",{method:"POST",body:JSON.stringify(payload)});localStorage.setItem("storeToken",result.token);localStorage.setItem("storeUser",JSON.stringify(result.user));$("accountButton").innerHTML=`Hello, ${result.user.name}<br><b>Account & Lists</b>`;toast(state.authMode==="signup"?"Account saved in MongoDB":"Signed in successfully");closeAll()}catch(error){toast(error.message)}});
-$("searchForm").addEventListener("submit",e=>{e.preventDefault();state.query=$("searchInput").value.trim();state.category=$("searchCategory").value;state.page=1;render();$("sectionTitle").textContent=state.query?`Results for "${state.query}"`:state.category});
-$("searchCategory").addEventListener("change",()=>{state.category=$("searchCategory").value;state.page=1;render()});
-$("sortSelect").addEventListener("change",e=>{state.sort=e.target.value;render()});
-$("overlay").addEventListener("click",closeAll);
+
+// Login and registration using SQLite backend
+$("authForm").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const name = $("authName").value.trim();
+  const email = $("authEmail").value.trim().toLowerCase();
+  const password = $("authPassword").value;
+
+  const endpoint = state.authMode === "signup"
+    ? "/api/auth/register"
+    : "/api/auth/login";
+
+  const payload = state.authMode === "signup"
+    ? { name, email, password }
+    : { email, password };
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message);
+
+    localStorage.setItem("storeToken", data.token);
+    localStorage.setItem("storeUser", JSON.stringify(data.user));
+
+    $("accountButton").innerHTML =
+      `Hello, ${data.user.name}<br><b>Account & Lists</b>`;
+
+    closeAll();
+    toast("Login successful");
+  } catch (error) {
+    toast(error.message);
+  }
+});
+
+// Search
+$("searchForm").addEventListener("submit", event => {
+  event.preventDefault();
+
+  state.query = $("searchInput").value.trim();
+  state.category = $("searchCategory").value;
+  state.page = 1;
+
+  render();
+});
+
+$("sortSelect").addEventListener("change", event => {
+  state.sort = event.target.value;
+  render();
+});
+
+$("overlay").addEventListener("click", closeAll);
+
 init();
