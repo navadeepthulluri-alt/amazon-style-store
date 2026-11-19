@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,23 +8,43 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
 <header>
   <div class="topbar">
-    <a class="brand" href="#" aria-label="Home"><span class="brand-main">amazon</span><span class="brand-smile">⌣</span><small>.in</small></a>
+    <a class="brand" href="#" aria-label="Home">
+      <span class="brand-main">amazon</span>
+      <span class="brand-smile">⌣</span>
+      <small>.in</small>
+    </a>
+
     <div class="deliver">Deliver to<br><b>India</b></div>
+
     <form id="searchForm" class="search">
-      <select id="searchCategory" aria-label="Search category"><option value="All">All</option></select>
-      <input id="searchInput" type="search" placeholder="Search Amazon-style store" autocomplete="off">
+      <select id="searchCategory" aria-label="Search category">
+        <option value="All">All</option>
+      </select>
+      <input id="searchInput" type="search"
+        placeholder="Search Amazon-style store" autocomplete="off">
       <button aria-label="Search">⌕</button>
     </form>
-    <button class="nav-action" id="accountButton">Hello, sign in<br><b>Account & Lists</b></button>
-    <button class="nav-action" id="ordersButton">Returns<br><b>& Orders</b></button>
-    <button class="cart-link" id="cartButton">🛒 <b>Cart</b> <span id="cartCount">0</span></button>
+
+    <button class="nav-action" id="accountButton">
+      Hello, sign in<br><b>Account & Lists</b>
+    </button>
+
+    <button class="nav-action" id="ordersButton">
+      Returns<br><b>& Orders</b>
+    </button>
+
+    <button class="cart-link" id="cartButton">
+      🛒 <b>Cart</b> <span id="cartCount">0</span>
+    </button>
   </div>
+
   <nav class="subnav">
     <button id="allCategories">☰ All</button>
     <button data-category="Grocery">Fresh</button>
-    <button data-category="TVs &amp; Home Audio">MX Player</button>
+    <button data-category="TVs & Home Audio">MX Player</button>
     <button id="sellNav">Sell</button>
     <button id="bestNav">Best Sellers</button>
     <button data-category="Mobiles">Mobiles</button>
@@ -32,68 +53,170 @@
     <button data-category="Electronics">Electronics</button>
     <button data-category="Fashion">Fashion</button>
     <button data-category="Furniture">Furniture</button>
-    <button data-category="Home &amp; Kitchen">Home &amp; Kitchen</button>
+    <button data-category="Home & Kitchen">Home & Kitchen</button>
     <button data-category="Books">Books</button>
   </nav>
 </header>
 
 <main>
   <section class="opening-ad" aria-label="Silent smartphone advertisement">
-    <div class="ad-heading"><span>ADVERTISEMENT</span><span>Sound off</span></div>
-    <video class="phone-ad-video" autoplay muted loop playsinline controls preload="auto">
+    <div class="ad-heading">
+      <span>ADVERTISEMENT</span>
+      <span>Sound off</span>
+    </div>
+
+    <video class="phone-ad-video" autoplay muted loop playsinline
+      controls preload="auto">
       <source src="phone-ad.mp4" type="video/mp4">
       Your browser does not support HTML video.
     </video>
-    <div class="ad-caption">A sample smartphone promotion. Autoplays muted, with controls available.</div>
+
+    <div class="ad-caption">
+      A sample smartphone promotion. Autoplays muted, with controls available.
+    </div>
   </section>
+
   <section class="hero">
-    <div class="hero-copy"><p class="eyebrow">GREAT DEALS, EVERY DAY</p><h1>Everything you need.<br>All in one place.</h1><p>Explore electronics, fashion, home essentials and more.</p><button id="shopNow">Shop today's picks</button></div>
-    <div class="hero-art"><div class="sun"></div><div class="hero-card hc1">Electronics<br><b>Up to 40% off</b></div><div class="hero-card hc2">Home & Kitchen<br><b>Fresh finds</b></div><div class="hero-card hc3">Fashion<br><b>New season</b></div></div>
-    <button class="hero-arrow left" id="heroPrev" aria-label="Previous">‹</button><button class="hero-arrow right" id="heroNext" aria-label="Next">›</button>
+    <div class="hero-copy">
+      <p class="eyebrow">GREAT DEALS, EVERY DAY</p>
+      <h1>Everything you need.<br>All in one place.</h1>
+      <p>Explore electronics, fashion, home essentials and more.</p>
+      <button id="shopNow">Shop today's picks</button>
+    </div>
+
+    <div class="hero-art">
+      <div class="sun"></div>
+      <div class="hero-card hc1">Electronics<br><b>Up to 40% off</b></div>
+      <div class="hero-card hc2">Home & Kitchen<br><b>Fresh finds</b></div>
+      <div class="hero-card hc3">Fashion<br><b>New season</b></div>
+    </div>
+
+    <button class="hero-arrow left" id="heroPrev" aria-label="Previous">‹</button>
+    <button class="hero-arrow right" id="heroNext" aria-label="Next">›</button>
   </section>
 
   <section class="category-strip" id="categoryStrip"></section>
+
   <div class="toolbar">
-    <div><h2 id="sectionTitle">Today's deals</h2><p id="resultInfo">Browse 300 products</p></div>
-    <div class="toolbar-controls"><label>Sort by <select id="sortSelect"><option value="featured">Featured</option><option value="low">Price: Low to High</option><option value="high">Price: High to Low</option><option value="rating">Customer Rating</option></select></label></div>
+    <div>
+      <h2 id="sectionTitle">Today's deals</h2>
+      <p id="resultInfo">Browse 300 products</p>
+    </div>
+
+    <div class="toolbar-controls">
+      <label>Sort by
+        <select id="sortSelect">
+          <option value="featured">Featured</option>
+          <option value="low">Price: Low to High</option>
+          <option value="high">Price: High to Low</option>
+          <option value="rating">Customer Rating</option>
+        </select>
+      </label>
+    </div>
   </div>
+
   <section id="productGrid" class="product-grid"></section>
-  <div class="pagination"><button id="prevPage">Previous</button><span id="pageInfo">Page 1</span><button id="nextPage">Next</button></div>
+
+  <div class="pagination">
+    <button id="prevPage">Previous</button>
+    <span id="pageInfo">Page 1</span>
+    <button id="nextPage">Next</button>
+  </div>
 </main>
 
 <div class="overlay hidden" id="overlay"></div>
+
 <aside class="drawer hidden" id="cartDrawer">
-  <div class="drawer-head"><h2>Your Cart</h2><button class="close" data-close>×</button></div>
+  <div class="drawer-head">
+    <h2>Your Cart</h2>
+    <button class="close" data-close>×</button>
+  </div>
+
   <div id="cartItems"></div>
-  <div class="cart-total"><b>Subtotal: <span id="cartTotal">₹0</span></b><button class="primary" id="checkoutButton">Proceed to checkout</button></div>
+
+  <div class="cart-total">
+    <b>Subtotal: <span id="cartTotal">₹0</span></b>
+    <button class="primary" id="checkoutButton">
+      Proceed to checkout
+    </button>
+  </div>
 </aside>
 
 <section class="modal hidden" id="authModal">
   <button class="close modal-close" data-close>×</button>
-  <h2 id="authTitle">Sign in</h2><p class="muted">Create an account or sign in. Account details are stored in MongoDB.</p>
+
+  <h2 id="authTitle">Sign in</h2>
+  <p class="muted">Create an account or sign in to your store account.</p>
+
   <form id="authForm">
-    <label>Name <input id="authName" placeholder="Your name" required></label>
-    <label>Email <input id="authEmail" type="email" placeholder="name@example.com" required></label>
-    <label>Password <input id="authPassword" type="password" minlength="8" placeholder="At least 8 characters" required></label>
-    <button class="primary" type="submit" id="authSubmit">Continue</button>
+    <label>Name
+      <input id="authName" placeholder="Your name" required>
+    </label>
+
+    <label>Email
+      <input id="authEmail" type="email"
+        placeholder="name@example.com" required>
+    </label>
+
+    <label>Password
+      <input id="authPassword" type="password"
+        minlength="8" placeholder="At least 8 characters" required>
+    </label>
+
+    <button class="primary" type="submit" id="authSubmit">
+      Continue
+    </button>
   </form>
-  <p id="authSwitch">New here? <button class="text-button" id="switchAuth">Create an account</button></p>
-  <p class="tiny">Passwords are hashed on the server. Use a unique password for this student demo.</p>
+
+  <p id="authSwitch">
+    New here?
+    <button type="button" class="text-button" id="switchAuth">
+      Create an account
+    </button>
+  </p>
+
+  <p class="tiny">
+    Passwords are hashed on the server. Use a unique password for this student demo.
+  </p>
 </section>
 
 <section class="modal wide hidden" id="checkoutModal">
   <button class="close modal-close" data-close>×</button>
+
   <h2>Checkout</h2>
-  <div class="steps"><span class="active" data-step-label="1">1. Sign in</span><span data-step-label="2">2. Delivery</span><span data-step-label="3">3. Payment</span><span data-step-label="4">4. Review</span></div>
+
+  <div class="steps">
+    <span class="active" data-step-label="1">1. Sign in</span>
+    <span data-step-label="2">2. Delivery</span>
+    <span data-step-label="3">3. Payment</span>
+    <span data-step-label="4">4. Review</span>
+  </div>
+
   <div id="checkoutContent"></div>
 </section>
 
 <section class="modal wide hidden" id="productModal">
-  <button class="close modal-close" data-close>×</button><div id="productDetails"></div>
+  <button class="close modal-close" data-close>×</button>
+  <div id="productDetails"></div>
 </section>
+
+<!-- INFORMATION WINDOW FOR SELL AND CUSTOMER SERVICE -->
+<section class="modal wide hidden" id="infoModal">
+  <button class="close modal-close" data-close>×</button>
+  <h2 id="infoTitle">Information</h2>
+  <div id="infoBody"></div>
+</section>
+
 <div class="toast" id="toast"></div>
-<footer><b>Amazon-style Store Demo</b><p>Educational front-end project. Not affiliated with Amazon.</p><button id="backTop">Back to top ↑</button></footer>
+
+<footer>
+  <b>Amazon-style Store Demo</b>
+  <p>Educational front-end project. Not affiliated with Amazon.</p>
+  <button id="backTop">Back to top ↑</button>
+</footer>
+
 <script src="products.js"></script>
 <script src="app.js"></script>
+
 </body>
 </html>
