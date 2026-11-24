@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+body {
+  font-family: "Amazon Ember", "Inter", Arial, sans-serif;
+  background-color: #EAEDED;
+  color: #0F1111;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+.hero-gradient {
+  background: linear-gradient(to bottom, rgba(234, 237, 237, 0) 60%, rgba(234, 237, 237, 1) 100%);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.amazon-badge-clip {
+  clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
