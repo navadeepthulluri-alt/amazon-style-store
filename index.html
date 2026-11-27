@@ -6,6 +6,7 @@
   <title>Amazon.in | Online Shopping site in India</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -38,6 +39,18 @@
 
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
+
+    const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+    const isSupabaseConfigured =
+      SUPABASE_URL.startsWith('https://') &&
+      !SUPABASE_URL.includes('YOUR_PROJECT_ID') &&
+      !SUPABASE_ANON_KEY.includes('YOUR_SUPABASE_ANON_KEY');
+
+    const supabaseClient = isSupabaseConfigured && window.supabase
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
 
     const INITIAL_PRODUCTS = [
       { id: '1', title: 'Sony WH-1000XM5 Wireless Noise Canceling Headphones', category: 'Electronics', price: 398.00, originalPrice: 449.99, rating: 4.8, reviewCount: 14250, isPrime: true, stock: 18, brand: 'Sony', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80', badge: '#1 Best Seller', description: 'Industry-leading noise cancellation with two processors and 8 microphones for unprecedented sound quality.', specs: ['Up to 30-hour battery life', 'Ultra-comfortable light design', 'Multipoint connection'] },
@@ -135,7 +148,9 @@
     function App() {
       const [userName, setUserName] = useState(() => localStorage.getItem('amazon_gh_user') || 'Guest');
       const [deliveryLocation, setDeliveryLocation] = useState(() => localStorage.getItem('amazon_gh_zip') || 'Bengaluru 560001');
-      const [products] = useState(INITIAL_PRODUCTS);
+      const [products, setProducts] = useState(INITIAL_PRODUCTS);
+      const [dbConnected, setDbConnected] = useState(false);
+
       const [selectedCategory, setSelectedCategory] = useState('All');
       const [searchQuery, setSearchQuery] = useState('');
       const [searchDropdownCategory, setSearchDropdownCategory] = useState('All');
@@ -183,6 +198,46 @@
         setTimeout(() => setToast(null), 3000);
       };
 
+      useEffect(() => {
+        if (!supabaseClient) return;
+        const syncSupabase = async () => {
+          try {
+            const { data: ordersData, error: ordErr } = await supabaseClient
+              .from('orders')
+              .select('*')
+              .order('created_at', { ascending: false });
+
+            if (!ordErr && ordersData) {
+              setDbConnected(true);
+              if (ordersData.length > 0) {
+                setOrders(ordersData.map((o) => ({
+                  id: o.id,
+                  date: o.date,
+                  items: o.items || [],
+                  total: o.total,
+                  shippingAddress: o.shipping_address || {},
+                  status: o.status
+                })));
+              }
+            }
+
+            const { data: wishData } = await supabaseClient.from('wishlist').select('*');
+            if (wishData && wishData.length > 0) {
+              setWishlist(wishData.map((w) => ({
+                id: w.product_id,
+                title: w.title,
+                price: Number(w.price),
+                image: w.image,
+                brand: w.brand
+              })));
+            }
+          } catch (err) {
+            console.warn('Supabase sync skipped:', err);
+          }
+        };
+        syncSupabase();
+      }, []);
+
       useEffect(() => { localStorage.setItem('amazon_gh_cart', JSON.stringify(cart)); }, [cart]);
       useEffect(() => { localStorage.setItem('amazon_gh_wishlist', JSON.stringify(wishlist)); }, [wishlist]);
       useEffect(() => { localStorage.setItem('amazon_gh_orders', JSON.stringify(orders)); }, [orders]);
@@ -209,10 +264,25 @@
         triggerToast('Item removed from Cart', 'info');
       };
 
-      const toggleWishlist = (product) => {
+      const toggleWishlist = async (product) => {
         const exists = wishlist.some((w) => w.id === product.id);
         setWishlist(exists ? wishlist.filter((w) => w.id !== product.id) : [...wishlist, product]);
         triggerToast(exists ? 'Removed from Your Wish List' : 'Saved to Your Wish List');
+
+        if (supabaseClient) {
+          if (exists) {
+            await supabaseClient.from('wishlist').delete().eq('product_id', product.id);
+          } else {
+            await supabaseClient.from('wishlist').upsert({
+              id: 'wish-' + product.id,
+              product_id: product.id,
+              title: product.title,
+              price: product.price,
+              image: product.image,
+              brand: product.brand
+            });
+          }
+        }
       };
 
       const cartSubtotal = useMemo(() => cart.reduce((s, i) => s + i.price * i.quantity, 0), [cart]);
@@ -228,22 +298,40 @@
         }
       };
 
-      const handlePlaceOrder = () => {
+      const handlePlaceOrder = async () => {
+        const orderId = '408-' + Math.floor(1000000 + Math.random() * 9000000) + '-' + Math.floor(1000000 + Math.random() * 9000000);
+        const orderDate = new Date().toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' });
+        const totalFormatted = toINR(finalTotal).toLocaleString('en-IN');
+        const addressWithPay = { ...shippingAddress, paymentMethod };
+
         const newOrder = {
-          id: '408-' + Math.floor(1000000 + Math.random() * 9000000) + '-' + Math.floor(1000000 + Math.random() * 9000000),
-          date: new Date().toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' }),
+          id: orderId,
+          date: orderDate,
           items: [...cart],
-          total: toINR(finalTotal).toLocaleString('en-IN'),
-          shippingAddress: { ...shippingAddress, paymentMethod },
+          total: totalFormatted,
+          shippingAddress: addressWithPay,
           status: 'Arriving Tomorrow by 8 PM'
         };
+
+        if (supabaseClient) {
+          await supabaseClient.from('orders').insert({
+            id: orderId,
+            user_email: authForm.email || userName,
+            date: orderDate,
+            items: cart,
+            total: totalFormatted,
+            shipping_address: addressWithPay,
+            status: 'Arriving Tomorrow by 8 PM'
+          });
+        }
+
         setOrders([newOrder, ...orders]);
         setCart([]);
         setDiscountApplied(false);
         setPromoCode('');
         setCheckoutStep(1);
         setActiveModal('orders');
-        triggerToast('Order placed! Thank you for shopping on Amazon.in.');
+        triggerToast(supabaseClient ? 'Order saved to Supabase & placed!' : 'Order placed! Thank you for shopping on Amazon.in.');
       };
 
       const filteredProducts = useMemo(() => {
@@ -338,12 +426,19 @@
               </div>
             </div>
 
-            <nav className="bg-[#232F3E] text-white text-xs sm:text-sm px-2 sm:px-4 h-10 flex items-center space-x-1 overflow-x-auto no-scrollbar">
-              {CATEGORIES.map((category) => (
-                <button key={category} onClick={() => setSelectedCategory(category)} className={`px-2.5 py-1.5 rounded whitespace-nowrap border transition ${selectedCategory === category ? 'border-white font-bold bg-[#37475A]' : 'border-transparent hover:border-white'}`}>
-                  {category === 'All' ? <span className="flex items-center font-bold"><i className="fas fa-bars mr-1.5"></i> All</span> : category}
-                </button>
-              ))}
+            <nav className="bg-[#232F3E] text-white text-xs sm:text-sm px-2 sm:px-4 h-10 flex items-center justify-between overflow-x-auto no-scrollbar">
+              <div className="flex items-center space-x-1">
+                {CATEGORIES.map((category) => (
+                  <button key={category} onClick={() => setSelectedCategory(category)} className={`px-2.5 py-1.5 rounded whitespace-nowrap border transition ${selectedCategory === category ? 'border-white font-bold bg-[#37475A]' : 'border-transparent hover:border-white'}`}>
+                    {category === 'All' ? <span className="flex items-center font-bold"><i className="fas fa-bars mr-1.5"></i> All</span> : category}
+                  </button>
+                ))}
+              </div>
+              {dbConnected && (
+                <span className="hidden xl:inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded border border-emerald-700/60 shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span> Supabase Connected
+                </span>
+              )}
             </nav>
           </header>
 
